@@ -1,0 +1,29 @@
+{
+  "name": "elm-snake",
+  "version": "0.0.1",
+  "description": "Snake, written in Elm",
+  "main": "index.js",
+  "scripts": {
+    "start": "parcel serve ./src/index.html",
+    "build": "parcel build ./src/index.html",
+    "test": "elm-test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cruessler/elm-snake.git"
+  },
+  "author": "Christoph Rüßler <christoph.ruessler@mailbox.org>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/cruessler/elm-snake/issues"
+  },
+  "homepage": "https://github.com/cruessler/elm-snake#readme",
+  "devDependencies": {
+    "@parcel/transformer-elm": "^2.0.0-rc.0",
+    "elm": "^0.19.1-5",
+    "elm-format": "^0.8.5",
+    "elm-test": "^0.19.1-revision7",
+    "parcel": "^2.0.0-rc.0",
+    "prettier": "^2.3.2"
+  }
+}
