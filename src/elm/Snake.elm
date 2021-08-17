@@ -1,4 +1,16 @@
-module Snake exposing (Direction(..), Snake, head, initialize, mapSegments, move)
+module Snake exposing
+    ( Direction(..)
+    , IllegalMove(..)
+    , Snake
+    , foldSegments
+    , head
+    , initialize
+    , mapSegments
+    , move
+    , toList
+    )
+
+import Set
 
 
 type Direction
@@ -20,14 +32,22 @@ type Snake
     = Snake { head : Position, tail : List Direction }
 
 
-initialLength : Int
-initialLength =
+defaultLength : Int
+defaultLength =
     5
 
 
-initialize : Position -> Int -> Snake
+initialize : Position -> Maybe Int -> Snake
 initialize position length =
-    Snake { head = position, tail = List.repeat initialLength Left }
+    Snake
+        { head = position
+        , tail =
+            List.repeat
+                (length
+                    |> Maybe.withDefault defaultLength
+                )
+                Left
+        }
 
 
 head : Snake -> Position
@@ -70,11 +90,12 @@ reverse direction =
 move : Direction -> Snake -> Result IllegalMove Snake
 move direction (Snake snake) =
     let
+        newSnake : Snake
         newSnake =
             case snake.tail of
                 first :: _ ->
                     if first == direction then
-                        snake
+                        Snake snake
 
                     else
                         let
@@ -88,25 +109,53 @@ move direction (Snake snake) =
                                     |> List.reverse
                                     |> (\tail -> reverse direction :: tail)
                         in
-                        { head = newHead, tail = newTail }
+                        Snake { head = newHead, tail = newTail }
 
                 _ ->
-                    snake
+                    Snake snake
     in
-    Ok (Snake newSnake)
+    if snakeBitesItself newSnake then
+        Err IllegalMove
+
+    else
+        Ok newSnake
 
 
-mapSegments : (( Int, Int ) -> a) -> Snake -> List a
-mapSegments f (Snake snake) =
+snakeBitesItself : Snake -> Bool
+snakeBitesItself =
+    foldSegments
+        (\position ( positions, acc ) ->
+            if Set.member position positions then
+                ( positions, True )
+
+            else
+                ( Set.insert position positions, acc )
+        )
+        ( Set.empty, False )
+        >> Tuple.second
+
+
+foldSegments : (Position -> b -> b) -> b -> Snake -> b
+foldSegments f initialAcc (Snake snake) =
     List.foldl
         (\direction ( position, acc ) ->
             let
                 newPosition =
                     step direction position
             in
-            ( newPosition, f newPosition :: acc )
+            ( newPosition, f newPosition acc )
         )
-        ( snake.head, [ f snake.head ] )
+        ( snake.head, f snake.head initialAcc )
         snake.tail
         |> Tuple.second
-        |> List.reverse
+
+
+mapSegments : (Position -> a) -> Snake -> List a
+mapSegments f =
+    foldSegments (\position acc -> f position :: acc) []
+        >> List.reverse
+
+
+toList : Snake -> List Position
+toList =
+    mapSegments identity
