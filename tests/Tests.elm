@@ -1,14 +1,13 @@
-module Tests exposing (indexedMap, legalMovements)
+module Tests exposing (illegalMovements, legalMovements, toList)
 
-import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer, int, list, string)
-import Snake as Snake exposing (Direction(..), Snake)
+import Expect
+import Snake as Snake exposing (Direction(..), IllegalMove(..), Snake)
 import Test exposing (Test, describe, test)
 
 
 initialSnake : Snake
 initialSnake =
-    Snake.initialize ( 5, 1 ) 5
+    Snake.initialize ( 5, 1 ) Nothing
 
 
 legalMovements : Test
@@ -40,13 +39,39 @@ legalMovements =
         ]
 
 
-indexedMap : Test
-indexedMap =
-    describe "indexedMap"
+illegalMovements : Test
+illegalMovements =
+    describe "illegal movements"
+        [ test "running into itself results in an error" <|
+            \_ ->
+                let
+                    okSnake =
+                        initialSnake
+                            |> Snake.move Down
+                            |> Result.andThen (Snake.move Left)
+
+                    errSnake =
+                        okSnake
+                            |> Result.andThen (Snake.move Up)
+                in
+                Expect.all
+                    [ \_ ->
+                        Expect.equal
+                            (okSnake |> Result.map Snake.toList)
+                            (Ok [ ( 4, 2 ), ( 5, 2 ), ( 5, 1 ), ( 4, 1 ), ( 3, 1 ), ( 2, 1 ) ])
+                    , \_ -> Expect.equal errSnake (Err IllegalMove)
+                    ]
+                    ()
+        ]
+
+
+toList : Test
+toList =
+    describe "toList"
         [ test "for initial snake" <|
             \_ ->
                 Expect.equal
-                    (Snake.mapSegments identity initialSnake)
+                    (Snake.toList initialSnake)
                     [ ( 5, 1 ), ( 4, 1 ), ( 3, 1 ), ( 2, 1 ), ( 1, 1 ), ( 0, 1 ) ]
         , test "for snake that has moved" <|
             \_ ->
@@ -58,7 +83,7 @@ indexedMap =
 
                     segments =
                         movedSnake
-                            |> Result.map (Snake.mapSegments identity)
+                            |> Result.map Snake.toList
                 in
                 Expect.equal
                     segments
