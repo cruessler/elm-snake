@@ -1,4 +1,4 @@
-module Tests exposing (illegalMovements, legalMovements, toList)
+module Tests exposing (grow, illegalMovements, move, toList)
 
 import Expect
 import Snake as Snake exposing (Direction(..), IllegalMove(..), Snake)
@@ -10,9 +10,14 @@ initialSnake =
     Snake.initialize ( 5, 1 ) Nothing
 
 
-legalMovements : Test
-legalMovements =
-    describe "legal movements"
+initialShortSnake : Snake
+initialShortSnake =
+    Snake.initialize ( 5, 1 ) (Just 1)
+
+
+move : Test
+move =
+    describe "legal movements via move"
         [ test "moving back has no effect" <|
             \_ ->
                 let
@@ -20,22 +25,57 @@ legalMovements =
                         Snake.move Left initialSnake
                 in
                 Expect.equal movedSnake (Ok initialSnake)
-        , test "moving in any other direction moves the snake’s head" <|
+        , test "moving in any other direction moves the snake" <|
             \_ ->
                 let
                     otherDirections =
-                        [ ( Up, ( 5, 0 ) ), ( Right, ( 6, 1 ) ), ( Down, ( 5, 2 ) ) ]
+                        [ ( Up, [ ( 5, 0 ), ( 5, 1 ) ] )
+                        , ( Right, [ ( 6, 1 ), ( 5, 1 ) ] )
+                        , ( Down, [ ( 5, 2 ), ( 5, 1 ) ] )
+                        ]
 
                     expectations =
                         otherDirections
                             |> List.map
-                                (\( direction, expectedHead ) ->
+                                (\( direction, expectedList ) ->
                                     Snake.move direction
-                                        >> Result.map Snake.head
-                                        >> Expect.equal (Ok expectedHead)
+                                        >> Result.map Snake.toList
+                                        >> Expect.equal (Ok expectedList)
                                 )
                 in
-                Expect.all expectations initialSnake
+                Expect.all expectations initialShortSnake
+        ]
+
+
+grow : Test
+grow =
+    describe "legal movements via grow"
+        [ test "moving back has no effect" <|
+            \_ ->
+                let
+                    movedSnake =
+                        Snake.move Left initialSnake
+                in
+                Expect.equal movedSnake (Ok initialSnake)
+        , test "moving in any other direction grows the snake" <|
+            \_ ->
+                let
+                    otherDirections =
+                        [ ( Up, [ ( 5, 0 ), ( 5, 1 ), ( 4, 1 ) ] )
+                        , ( Right, [ ( 6, 1 ), ( 5, 1 ), ( 4, 1 ) ] )
+                        , ( Down, [ ( 5, 2 ), ( 5, 1 ), ( 4, 1 ) ] )
+                        ]
+
+                    expectations =
+                        otherDirections
+                            |> List.map
+                                (\( direction, expectedList ) ->
+                                    Snake.grow direction
+                                        >> Result.map Snake.toList
+                                        >> Expect.equal (Ok expectedList)
+                                )
+                in
+                Expect.all expectations initialShortSnake
         ]
 
 

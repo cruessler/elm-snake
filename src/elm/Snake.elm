@@ -3,6 +3,7 @@ module Snake exposing
     , IllegalMove(..)
     , Snake
     , foldSegments
+    , grow
     , head
     , initialize
     , mapSegments
@@ -108,6 +109,36 @@ move direction (Snake snake) =
                                     |> List.drop 1
                                     |> List.reverse
                                     |> (\tail -> reverse direction :: tail)
+                        in
+                        Snake { head = newHead, tail = newTail }
+
+                _ ->
+                    Snake snake
+    in
+    if snakeBitesItself newSnake then
+        Err IllegalMove
+
+    else
+        Ok newSnake
+
+
+grow : Direction -> Snake -> Result IllegalMove Snake
+grow direction (Snake snake) =
+    let
+        newSnake : Snake
+        newSnake =
+            case snake.tail of
+                first :: _ ->
+                    if first == direction then
+                        Snake snake
+
+                    else
+                        let
+                            newHead =
+                                step direction snake.head
+
+                            newTail =
+                                reverse direction :: snake.tail
                         in
                         Snake { head = newHead, tail = newTail }
 
