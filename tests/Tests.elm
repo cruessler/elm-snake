@@ -1,7 +1,8 @@
-module Tests exposing (grow, illegalMovements, move, toList)
+module Tests exposing (game, grow, illegalMovements, move, toList)
 
 import Expect
-import Snake as Snake exposing (Direction(..), IllegalMove(..), Snake)
+import Game exposing (Game)
+import Snake exposing (Direction(..), IllegalMove(..), Snake)
 import Test exposing (Test, describe, test)
 
 
@@ -130,4 +131,77 @@ toList =
                     (Ok
                         [ ( 5, 3 ), ( 5, 2 ), ( 5, 1 ), ( 4, 1 ), ( 3, 1 ), ( 2, 1 ) ]
                     )
+        ]
+
+
+initialTinyGame : Game
+initialTinyGame =
+    Game.initialize (Just { width = 8, height = 3 })
+
+
+game : Test
+game =
+    describe "Game"
+        [ describe "isRunning"
+            [ test "initial game" <|
+                \_ ->
+                    Expect.equal True
+                        (Game.isRunning initialTinyGame)
+            , test "paused game" <|
+                \_ ->
+                    Expect.equal False
+                        (initialTinyGame |> Game.pause |> Game.isRunning)
+            ]
+        , describe "isPaused"
+            [ test "initial game" <|
+                \_ ->
+                    Expect.equal False
+                        (initialTinyGame |> Game.isPaused)
+            , test "paused game" <|
+                \_ ->
+                    Expect.equal True
+                        (initialTinyGame |> Game.pause |> Game.isPaused)
+            ]
+        , describe "step"
+            [ test "running off the board loses the game" <|
+                \_ ->
+                    let
+                        lostGame : Game
+                        lostGame =
+                            initialTinyGame
+                                |> Game.step
+                                |> Game.step
+                    in
+                    Expect.equal True (Game.isLost lostGame)
+            , test "not running off the board does not lose the game" <|
+                \_ ->
+                    let
+                        lostGame : Game
+                        lostGame =
+                            initialTinyGame
+                                |> Game.step
+                    in
+                    Expect.equal False (Game.isLost lostGame)
+            , test "changing direction and not running off the board does not lose the game" <|
+                \_ ->
+                    let
+                        lostGame : Game
+                        lostGame =
+                            initialTinyGame
+                                |> Game.move Up
+                                |> Game.step
+                    in
+                    Expect.equal False (Game.isLost lostGame)
+            , test "changing direction and running off the board loses the game" <|
+                \_ ->
+                    let
+                        lostGame : Game
+                        lostGame =
+                            initialTinyGame
+                                |> Game.move Up
+                                |> Game.step
+                                |> Game.step
+                    in
+                    Expect.equal True (Game.isLost lostGame)
+            ]
         ]
