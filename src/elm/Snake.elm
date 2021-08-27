@@ -1,13 +1,17 @@
 module Snake exposing
     ( Direction(..)
     , IllegalMove(..)
+    , Position
     , Snake
+    , anySegment
     , foldSegments
     , grow
     , head
     , initialize
     , mapSegments
     , move
+    , oppositeDirection
+    , orientation
     , toList
     )
 
@@ -56,6 +60,12 @@ head (Snake snake) =
     snake.head
 
 
+orientation : Snake -> Maybe Direction
+orientation (Snake snake) =
+    List.head snake.tail
+        |> Maybe.map oppositeDirection
+
+
 step : Direction -> ( Int, Int ) -> ( Int, Int )
 step direction ( x, y ) =
     case direction of
@@ -72,8 +82,8 @@ step direction ( x, y ) =
             ( x - 1, y )
 
 
-reverse : Direction -> Direction
-reverse direction =
+oppositeDirection : Direction -> Direction
+oppositeDirection direction =
     case direction of
         Up ->
             Down
@@ -108,7 +118,7 @@ move direction (Snake snake) =
                                     |> List.reverse
                                     |> List.drop 1
                                     |> List.reverse
-                                    |> (\tail -> reverse direction :: tail)
+                                    |> (\tail -> oppositeDirection direction :: tail)
                         in
                         Snake { head = newHead, tail = newTail }
 
@@ -138,7 +148,7 @@ grow direction (Snake snake) =
                                 step direction snake.head
 
                             newTail =
-                                reverse direction :: snake.tail
+                                oppositeDirection direction :: snake.tail
                         in
                         Snake { head = newHead, tail = newTail }
 
@@ -185,6 +195,19 @@ mapSegments : (Position -> a) -> Snake -> List a
 mapSegments f =
     foldSegments (\position acc -> f position :: acc) []
         >> List.reverse
+
+
+anySegment : (Position -> Bool) -> Snake -> Bool
+anySegment f =
+    foldSegments
+        (\position acc ->
+            if acc then
+                acc
+
+            else
+                f position
+        )
+        False
 
 
 toList : Snake -> List Position
