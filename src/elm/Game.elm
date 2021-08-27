@@ -1,4 +1,4 @@
-module Game exposing (Game, initialize, isLost, isPaused, isRunning, move, pause, resume, step)
+module Game exposing (Game, face, initialize, isLost, isPaused, isRunning, pause, resume, step)
 
 import Snake exposing (Direction(..), Position, Snake)
 
@@ -110,8 +110,8 @@ snakeOffBoard board snake =
             )
 
 
-move : Direction -> Game -> Game
-move orientation game =
+face : Direction -> Game -> Game
+face direction game =
     case game of
         Running state ->
             if
@@ -119,9 +119,9 @@ move orientation game =
                     |> Snake.orientation
                     |> Maybe.map Snake.oppositeDirection
                 )
-                    /= Just orientation
+                    /= Just direction
             then
-                Running { state | direction = orientation }
+                Running { state | direction = direction }
 
             else
                 Running state

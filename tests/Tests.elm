@@ -188,7 +188,7 @@ game =
                         lostGame : Game
                         lostGame =
                             initialTinyGame
-                                |> Game.move Up
+                                |> Game.face Up
                                 |> Game.step
                     in
                     Expect.equal False (Game.isLost lostGame)
@@ -198,8 +198,22 @@ game =
                         lostGame : Game
                         lostGame =
                             initialTinyGame
-                                |> Game.move Up
+                                |> Game.face Up
                                 |> Game.step
+                                |> Game.step
+                    in
+                    Expect.equal True (Game.isLost lostGame)
+            , test "running into itself loses the game" <|
+                \_ ->
+                    let
+                        lostGame : Game
+                        lostGame =
+                            initialTinyGame
+                                |> Game.face Up
+                                |> Game.step
+                                |> Game.face Left
+                                |> Game.step
+                                |> Game.face Down
                                 |> Game.step
                     in
                     Expect.equal True (Game.isLost lostGame)
