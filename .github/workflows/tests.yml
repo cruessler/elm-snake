@@ -23,6 +23,9 @@ jobs:
       - name: Run tests
         run: npm test
 
+      - name: Build assets
+        run: npm run build
+
       - name: Check formatting
         run: |
           npx elm-format --validate src/elm tests
