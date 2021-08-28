@@ -1,5 +1,20 @@
-module Game exposing (Game, face, initialize, isLost, isPaused, isRunning, pause, resume, step)
+module Game exposing
+    ( Game
+    , Square(..)
+    , board
+    , face
+    , initialize
+    , isLost
+    , isPaused
+    , isRunning
+    , mapSquares
+    , pause
+    , resume
+    , round
+    , step
+    )
 
+import Set
 import Snake exposing (Direction(..), Position, Snake)
 
 
@@ -7,6 +22,7 @@ type alias State =
     { snake : Snake
     , direction : Direction
     , board : Board
+    , round : Int
     }
 
 
@@ -23,6 +39,11 @@ type Game
         { snake : Snake
         , board : Board
         }
+
+
+type Square
+    = Empty
+    | PartOfSnake
 
 
 defaultInitialWidth : Int
@@ -59,6 +80,7 @@ initialize initialBoard =
         { snake = Snake.initialize initialPosition (Just initialLength)
         , direction = Right
         , board = initialBoard_
+        , round = 0
         }
 
 
@@ -92,7 +114,11 @@ step game =
                         Lost { snake = state.snake, board = state.board }
 
                     else
-                        Running { state | snake = newSnake }
+                        Running
+                            { state
+                                | snake = newSnake
+                                , round = state.round + 1
+                            }
 
                 Err _ ->
                     Lost { snake = state.snake, board = state.board }
@@ -102,11 +128,11 @@ step game =
 
 
 snakeOffBoard : Board -> Snake -> Bool
-snakeOffBoard board snake =
-    snake
+snakeOffBoard board_ snake_ =
+    snake_
         |> Snake.anySegment
             (\( x, y ) ->
-                x < 0 || x >= board.width || y < 0 || y >= board.height
+                x < 0 || x >= board_.width || y < 0 || y >= board_.height
             )
 
 
@@ -158,3 +184,78 @@ isLost game =
 
         _ ->
             False
+
+
+round : Game -> Maybe Int
+round game =
+    case game of
+        Running state ->
+            Just state.round
+
+        _ ->
+            Nothing
+
+
+board : Game -> Board
+board game =
+    case game of
+        Running state ->
+            state.board
+
+        Paused state ->
+            state.board
+
+        Lost state ->
+            state.board
+
+
+snake : Game -> Snake
+snake game =
+    case game of
+        Running state ->
+            state.snake
+
+        Paused state ->
+            state.snake
+
+        Lost state ->
+            state.snake
+
+
+mapSquares : (Position -> Square -> a) -> Game -> List a
+mapSquares f game =
+    let
+        board_ =
+            board game
+
+        xs =
+            List.range 0 (board_.width - 1)
+
+        ys =
+            List.range 0 (board_.height - 1)
+
+        snakePositions =
+            snake game
+                |> Snake.toList
+                |> Set.fromList
+    in
+    ys
+        |> List.concatMap
+            (\y ->
+                xs
+                    |> List.map
+                        (\x ->
+                            let
+                                position =
+                                    ( x, y )
+
+                                square =
+                                    if Set.member position snakePositions then
+                                        PartOfSnake
+
+                                    else
+                                        Empty
+                            in
+                            f position square
+                        )
+            )
