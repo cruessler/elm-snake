@@ -21,8 +21,7 @@ type alias Model =
 
 type GameMsg
     = Face Direction
-    | Pause
-    | Resume
+    | TogglePause
     | Restart
 
 
@@ -68,9 +67,8 @@ keybindings =
     , ( "f", Face Right )
     , ( "d", Face Down )
     , ( "s", Face Left )
-    , ( "p", Pause )
-    , ( "r", Resume )
-    , ( "a", Restart )
+    , ( "p", TogglePause )
+    , ( "j", Restart )
     ]
         |> Dict.fromList
 
@@ -84,11 +82,12 @@ updateGame msg model =
                 Face direction ->
                     Game.face direction
 
-                Pause ->
-                    Game.pause
+                TogglePause ->
+                    if Game.isRunning model then
+                        Game.pause
 
-                Resume ->
-                    Game.resume
+                    else
+                        Game.resume
 
                 Restart ->
                     always initialGame
