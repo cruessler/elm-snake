@@ -14,6 +14,7 @@ body {
 #board {
   --width: calc(min(80vw, 80vh));
   --snake-color: rgb(101, 180, 28);
+  --fruit-color: rgb(217, 67, 67);
   --rows: 40;
   --columns: 40;
 
@@ -36,6 +37,10 @@ body {
 .square.snake {
   border: var(--snake-color);
   background-color: var(--snake-color);
+}
+.square.fruit {
+  border: var(--fruit-color);
+  background-color: var(--fruit-color);
 }
 .lost .square,
 .paused .square {

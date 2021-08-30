@@ -12,6 +12,7 @@ module Snake exposing
     , move
     , oppositeDirection
     , orientation
+    , peek
     , toList
     )
 
@@ -98,32 +99,41 @@ oppositeDirection direction =
             Right
 
 
+peek : Direction -> Snake -> Position
+peek direction (Snake snake) =
+    case snake.tail of
+        first :: _ ->
+            if first == direction then
+                snake.head
+
+            else
+                step direction snake.head
+
+        [] ->
+            step direction snake.head
+
+
 move : Direction -> Snake -> Result IllegalMove Snake
 move direction (Snake snake) =
     let
         newSnake : Snake
         newSnake =
-            case snake.tail of
-                first :: _ ->
-                    if first == direction then
-                        Snake snake
+            let
+                newHead =
+                    peek direction (Snake snake)
+
+                newTail =
+                    if newHead /= snake.head then
+                        snake.tail
+                            |> List.reverse
+                            |> List.drop 1
+                            |> List.reverse
+                            |> (\tail -> oppositeDirection direction :: tail)
 
                     else
-                        let
-                            newHead =
-                                step direction snake.head
-
-                            newTail =
-                                snake.tail
-                                    |> List.reverse
-                                    |> List.drop 1
-                                    |> List.reverse
-                                    |> (\tail -> oppositeDirection direction :: tail)
-                        in
-                        Snake { head = newHead, tail = newTail }
-
-                _ ->
-                    Snake snake
+                        snake.tail
+            in
+            Snake { head = newHead, tail = newTail }
     in
     if snakeBitesItself newSnake then
         Err IllegalMove

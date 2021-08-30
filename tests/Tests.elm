@@ -1,9 +1,12 @@
 module Tests exposing (game, grow, illegalMovements, move, toList)
 
 import Expect
-import Game exposing (Game)
+import Fuzz exposing (int)
+import Game exposing (Game, Square(..))
+import Random
+import Set
 import Snake exposing (Direction(..), IllegalMove(..), Snake)
-import Test exposing (Test, describe, test)
+import Test exposing (Test, describe, fuzz, test)
 
 
 initialSnake : Snake
@@ -136,7 +139,11 @@ toList =
 
 initialTinyGame : Game
 initialTinyGame =
-    Game.initialize (Just { width = 8, height = 3 })
+    Game.initialize
+        { board = Just { width = 8, height = 3 }
+        , initialSeed = Random.initialSeed 0
+        , probabilityForFruit = 0.0
+        }
 
 
 game : Test
@@ -169,6 +176,7 @@ game =
                         lostGame : Game
                         lostGame =
                             initialTinyGame
+                                |> Game.step
                                 |> Game.step
                                 |> Game.step
                     in
@@ -218,4 +226,35 @@ game =
                     in
                     Expect.equal True (Game.isLost lostGame)
             ]
+        , fuzz int "no fruit should be where the snake is" <|
+            \seed ->
+                let
+                    gameWithGuaranteedFruit =
+                        Game.initialize
+                            { board = Just { width = 5, height = 8 }
+                            , initialSeed = Random.initialSeed seed
+                            , probabilityForFruit = 1.0
+                            }
+                            |> Game.withFruits (Set.fromList [ ( 4, 3 ) ])
+
+                    numberOfSnakeSquares =
+                        gameWithGuaranteedFruit
+                            |> Game.step
+                            |> Game.mapSquares (\_ square -> square)
+                            |> List.foldl
+                                (\square acc ->
+                                    if square == PartOfSnake then
+                                        acc + 1
+
+                                    else
+                                        acc
+                                )
+                                0
+                in
+                {- The initial snake has 3 squares and the test is set up so
+                   that the snake eats a fruit on its first move and then has 4
+                   squares. This test makes sure the snake is never covered by
+                   a fruit.
+                -}
+                Expect.equal 4 numberOfSnakeSquares
         ]
