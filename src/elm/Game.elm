@@ -1,8 +1,9 @@
 module Game exposing
     ( Game
     , Square(..)
-    , board
     , face
+    , getBoard
+    , getRound
     , initialize
     , isLost
     , isPaused
@@ -10,19 +11,31 @@ module Game exposing
     , mapSquares
     , pause
     , resume
-    , round
     , step
+    , withFruits
     )
 
-import Set
+import Random exposing (Seed)
+import Random.Set
+import Set exposing (Set)
 import Snake exposing (Direction(..), Position, Snake)
+
+
+type alias Options =
+    { board : Maybe Board
+    , probabilityForFruit : Float
+    , initialSeed : Seed
+    }
 
 
 type alias State =
     { snake : Snake
+    , fruits : Set Position
     , direction : Direction
     , board : Board
     , round : Int
+    , probabilityForFruit : Float
+    , seed : Seed
     }
 
 
@@ -37,13 +50,17 @@ type Game
     | Paused State
     | Lost
         { snake : Snake
+        , fruits : Set Position
         , board : Board
+        , probabilityForFruit : Float
+        , seed : Seed
         }
 
 
 type Square
     = Empty
     | PartOfSnake
+    | Fruit
 
 
 defaultInitialWidth : Int
@@ -56,32 +73,66 @@ defaultInitialHeight =
     40
 
 
-initialLength : Int
-initialLength =
+maximumInitialLength : Int
+maximumInitialLength =
     5
 
 
-initialize : Maybe Board -> Game
-initialize initialBoard =
+maximumNumberOfFruits : Board -> Int
+maximumNumberOfFruits board =
+    board.width * board.height // 40
+
+
+initialize : Options -> Game
+initialize options =
     let
-        initialBoard_ : Board
-        initialBoard_ =
-            initialBoard
+        board : Board
+        board =
+            options.board
                 |> Maybe.withDefault
                     { width = defaultInitialWidth, height = defaultInitialHeight }
 
+        initialLength : Int
+        initialLength =
+            min (board.width // 2) maximumInitialLength
+
         initialPosition : Position
         initialPosition =
-            ( (initialBoard_.width + initialLength - 1) // 2
-            , (initialBoard_.height - 1) // 2
+            ( (board.width + initialLength - 1) // 2
+            , (board.height - 1) // 2
             )
     in
     Running
         { snake = Snake.initialize initialPosition (Just initialLength)
+        , fruits = Set.empty
         , direction = Right
-        , board = initialBoard_
+        , board = board
         , round = 0
+        , probabilityForFruit = options.probabilityForFruit
+        , seed = options.initialSeed
         }
+
+
+withFruits : Set Position -> Game -> Game
+withFruits fruits game =
+    let
+        snakeSquares =
+            getSnake game
+                |> Snake.toList
+                |> Set.fromList
+
+        legalFruits =
+            Set.diff fruits snakeSquares
+    in
+    case game of
+        Running state ->
+            Running { state | fruits = legalFruits }
+
+        Paused state ->
+            Paused { state | fruits = legalFruits }
+
+        Lost state ->
+            Lost { state | fruits = legalFruits }
 
 
 pause : Game -> Game
@@ -104,35 +155,143 @@ resume game =
             game
 
 
+randomFruit : State -> Seed -> ( Maybe Position, Seed )
+randomFruit state seed =
+    let
+        generator : Random.Generator (Maybe Position)
+        generator =
+            Random.float 0 1
+                |> Random.andThen
+                    (\p ->
+                        let
+                            placeNewFruit =
+                                p
+                                    < state.probabilityForFruit
+                                    && Set.size state.fruits
+                                    < maximumNumberOfFruits state.board
+                        in
+                        if placeNewFruit then
+                            Random.Set.sample (freeSquares state)
+
+                        else
+                            Random.constant Nothing
+                    )
+    in
+    Random.step generator seed
+
+
+freeSquares : State -> Set Position
+freeSquares state =
+    let
+        snakeSquares =
+            state.snake
+                |> Snake.toList
+                |> Set.fromList
+
+        occupiedSquares =
+            Set.union snakeSquares state.fruits
+    in
+    Set.diff (allSquares state) occupiedSquares
+
+
+allSquares : State -> Set Position
+allSquares state =
+    let
+        xs =
+            List.range 0 (state.board.width - 1)
+
+        ys =
+            List.range 0 (state.board.height - 1)
+    in
+    ys
+        |> List.concatMap
+            (\y ->
+                xs |> List.map (\x -> ( x, y ))
+            )
+        |> Set.fromList
+
+
 step : Game -> Game
 step game =
     case game of
         Running state ->
-            case Snake.move state.direction state.snake of
-                Ok newSnake ->
-                    if snakeOffBoard state.board newSnake then
-                        Lost { snake = state.snake, board = state.board }
+            let
+                newHead =
+                    Snake.peek state.direction state.snake
+
+                eatsFruit =
+                    Set.member newHead state.fruits
+
+                f : Direction -> Snake -> Result Snake.IllegalMove Snake
+                f =
+                    if eatsFruit then
+                        Snake.grow
 
                     else
-                        Running
-                            { state
-                                | snake = newSnake
-                                , round = state.round + 1
+                        Snake.move
+            in
+            case f state.direction state.snake of
+                Ok newSnake ->
+                    if snakeOffBoard state.board newSnake then
+                        Lost
+                            { snake = state.snake
+                            , fruits = state.fruits
+                            , board = state.board
+                            , probabilityForFruit = state.probabilityForFruit
+                            , seed = state.seed
                             }
 
+                    else
+                        let
+                            newFruits =
+                                Set.remove newHead state.fruits
+
+                            newState =
+                                { state
+                                    | snake = newSnake
+                                    , fruits = newFruits
+                                    , round = state.round + 1
+                                }
+                                    |> maybePlaceNewFruit
+                        in
+                        Running newState
+
                 Err _ ->
-                    Lost { snake = state.snake, board = state.board }
+                    Lost
+                        { snake = state.snake
+                        , fruits = state.fruits
+                        , board = state.board
+                        , probabilityForFruit = state.probabilityForFruit
+                        , seed = state.seed
+                        }
 
         _ ->
             game
 
 
+maybePlaceNewFruit : State -> State
+maybePlaceNewFruit state =
+    let
+        ( newFruit, newSeed ) =
+            randomFruit state state.seed
+
+        newFruits =
+            newFruit
+                |> Maybe.map (\fruit -> Set.insert fruit state.fruits)
+                |> Maybe.withDefault state.fruits
+    in
+    { state
+        | fruits = newFruits
+        , seed = newSeed
+    }
+
+
 snakeOffBoard : Board -> Snake -> Bool
-snakeOffBoard board_ snake_ =
-    snake_
+snakeOffBoard board snake =
+    snake
         |> Snake.anySegment
             (\( x, y ) ->
-                x < 0 || x >= board_.width || y < 0 || y >= board_.height
+                x < 0 || x >= board.width || y < 0 || y >= board.height
             )
 
 
@@ -186,8 +345,8 @@ isLost game =
             False
 
 
-round : Game -> Maybe Int
-round game =
+getRound : Game -> Maybe Int
+getRound game =
     case game of
         Running state ->
             Just state.round
@@ -196,8 +355,8 @@ round game =
             Nothing
 
 
-board : Game -> Board
-board game =
+getBoard : Game -> Board
+getBoard game =
     case game of
         Running state ->
             state.board
@@ -209,8 +368,8 @@ board game =
             state.board
 
 
-snake : Game -> Snake
-snake game =
+getSnake : Game -> Snake
+getSnake game =
     case game of
         Running state ->
             state.snake
@@ -220,22 +379,38 @@ snake game =
 
         Lost state ->
             state.snake
+
+
+getFruits : Game -> Set Position
+getFruits game =
+    case game of
+        Running state ->
+            state.fruits
+
+        Paused state ->
+            state.fruits
+
+        Lost state ->
+            state.fruits
 
 
 mapSquares : (Position -> Square -> a) -> Game -> List a
 mapSquares f game =
     let
-        board_ =
-            board game
+        board =
+            getBoard game
+
+        fruits =
+            getFruits game
 
         xs =
-            List.range 0 (board_.width - 1)
+            List.range 0 (board.width - 1)
 
         ys =
-            List.range 0 (board_.height - 1)
+            List.range 0 (board.height - 1)
 
         snakePositions =
-            snake game
+            getSnake game
                 |> Snake.toList
                 |> Set.fromList
     in
@@ -250,7 +425,10 @@ mapSquares f game =
                                     ( x, y )
 
                                 square =
-                                    if Set.member position snakePositions then
+                                    if Set.member position fruits then
+                                        Fruit
+
+                                    else if Set.member position snakePositions then
                                         PartOfSnake
 
                                     else

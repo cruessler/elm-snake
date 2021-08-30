@@ -7,12 +7,14 @@ import Game exposing (Game, Square(..))
 import Html as H exposing (Html)
 import Html.Attributes as A
 import Json.Decode as Decode
+import Random
 import Snake exposing (Direction(..))
+import Task
 import Time
 
 
 type alias Flags =
-    ()
+    Int
 
 
 type alias Model =
@@ -26,9 +28,9 @@ type GameMsg
 
 
 type Msg
-    = KeyPress String
+    = NewGame Time.Posix
+    | KeyPress String
     | Tick
-    | GameMsg GameMsg
 
 
 main : Program Flags Model Msg
@@ -46,19 +48,25 @@ initialWidth =
     40
 
 
-initialGame : Game
-initialGame =
-    Game.initialize
-        (Just
-            { width = initialWidth
-            , height = initialWidth
+initialGame : Int -> Game
+initialGame seed =
+    let
+        options =
+            { board =
+                Just
+                    { width = initialWidth
+                    , height = initialWidth
+                    }
+            , probabilityForFruit = 0.05
+            , initialSeed = Random.initialSeed seed
             }
-        )
+    in
+    Game.initialize options
 
 
-init : () -> ( Model, Cmd Msg )
-init () =
-    ( initialGame, Cmd.none )
+init : Flags -> ( Model, Cmd Msg )
+init flags =
+    ( initialGame flags, Cmd.none )
 
 
 keybindings : Dict String GameMsg
@@ -90,17 +98,33 @@ updateGame msg model =
                         Game.resume
 
                 Restart ->
-                    always initialGame
+                    identity
+
+        cmd : Cmd Msg
+        cmd =
+            case msg of
+                Restart ->
+                    Task.perform NewGame Time.now
+
+                _ ->
+                    Cmd.none
 
         newGame =
             f model
     in
-    ( newGame, Cmd.none )
+    ( newGame, cmd )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        NewGame now ->
+            let
+                newGame =
+                    initialGame (Time.posixToMillis now)
+            in
+            ( newGame, Cmd.none )
+
         Tick ->
             let
                 newGame =
@@ -115,9 +139,6 @@ update msg model =
 
                 Nothing ->
                     ( model, Cmd.none )
-
-        GameMsg gameMsg ->
-            updateGame gameMsg model
 
 
 msPerFrame : Float
@@ -147,7 +168,7 @@ subscriptions model =
         downs =
             Browser.Events.onKeyDown (Decode.map KeyPress keyDecoder)
     in
-    Game.round model
+    Game.getRound model
         |> Maybe.map
             (\round ->
                 Sub.batch
@@ -165,6 +186,7 @@ board game =
             H.div
                 [ [ ( "square", True )
                   , ( "snake", square == PartOfSnake )
+                  , ( "fruit", square == Fruit )
                   ]
                     |> A.classList
                 ]
