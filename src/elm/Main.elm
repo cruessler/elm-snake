@@ -45,7 +45,7 @@ main =
 
 initialWidth : Int
 initialWidth =
-    40
+    30
 
 
 initialGame : Int -> Game

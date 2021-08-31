@@ -65,12 +65,12 @@ type Square
 
 defaultInitialWidth : Int
 defaultInitialWidth =
-    40
+    30
 
 
 defaultInitialHeight : Int
 defaultInitialHeight =
-    40
+    30
 
 
 maximumInitialLength : Int

@@ -13,10 +13,10 @@ body {
 
 #board {
   --width: calc(min(80vw, 80vh));
-  --snake-color: rgb(101, 180, 28);
-  --fruit-color: rgb(217, 67, 67);
-  --rows: 40;
-  --columns: 40;
+  --snake-color: conic-gradient(green, blue, red, blue, green);
+  --fruit-color: conic-gradient(red, orange, green, red);
+  --rows: 30;
+  --columns: 30;
 
   width: var(--width);
   height: var(--width);
@@ -28,19 +28,20 @@ body {
 }
 
 .square {
-  border: 1px solid lightgray;
   background-color: white;
 
   filter: blur(0px) grayscale(0%);
   transition: filter 0.5s;
 }
 .square.snake {
-  border: var(--snake-color);
-  background-color: var(--snake-color);
+  border: none;
+  border-radius: 50%;
+  background: var(--snake-color);
 }
 .square.fruit {
-  border: var(--fruit-color);
-  background-color: var(--fruit-color);
+  border: none;
+  border-radius: 50%;
+  background: var(--fruit-color);
 }
 .lost .square,
 .paused .square {
